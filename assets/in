@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -e -x
 
 # for jq
 PATH=/usr/local/bin:$PATH
@@ -10,13 +10,13 @@ exec 1>&2 # redirect all output to stderr for logging
 
 destination=$1
 
-cat > $payload <&0
+payload=$(cat)
 
-uri=$(jq -r '.source.uri' < $payload)
-oinkcode=$(jq -r '.source.oinkcode' < $payload)
-md5=$(jq -r '.version.md5' < $payload)
+uri=$(echo "$payload" | jq -r '.source.uri')
+oinkcode=$(echo "$payload" | jq -r '.source.oinkcode')
+md5=$(echo "$payload" | jq -r '.version.md5')
 
-wget $uri?oinkcode=$oinkcode -O $destination/rules.tar.gz
+wget $uri?oinkcode=$oinkcode -P $destination
 
 # TODO: Verify hash
 
