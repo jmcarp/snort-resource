@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# for jq
+PATH=/usr/local/bin:$PATH
+
+exec 3>&1 # make stdout available as fd 3 for the result
+exec 1>&2 # redirect all output to stderr for logging
+
+cat > $payload <&0
+
+uri=$(jq -r '.source.uri' < $payload)
+oinkcode=$(jq -r '.source.oinkcode' < $payload)
+
+wget $uri.md5?oinkcode=$oinkcode -O hash.md5
+cat hash.md5 | jq -R '.' | jq -s "map({md5: .})" >&3
