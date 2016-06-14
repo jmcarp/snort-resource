@@ -2,7 +2,6 @@
 
 set -e -x
 
-# for jq
 PATH=/usr/local/bin:$PATH
 
 exec 3>&1 # make stdout available as fd 3 for the result
@@ -10,8 +9,20 @@ exec 1>&2 # redirect all output to stderr for logging
 
 payload=$(cat)
 
-uri=$(echo "$payload" | jq -r '.source.uri')
-oinkcode=$(echo "$payload" | jq -r '.source.oinkcode')
+uri=$(echo "$payload" | jq -r '.source.uri // ""')
+md5_uri=$(echo "$payload" | jq -r '.source.md5_uri // ""')
+oinkcode=$(echo "$payload" | jq -r '.source.oinkcode // ""')
 
-wget $uri.md5?oinkcode=$oinkcode -O hash.md5
-cat hash.md5 | jq -R '.' | jq -s "map({md5: .})" >&3
+if [ -n "$oinkcode" ]; then
+  query="?oinkcode=$oinkcode"
+else
+  query=""
+fi
+
+if [ -n "$md5_uri" ]; then
+  wget $md5_uri$query -O hash.md5
+  cat hash.md5 | jq -R '.' | jq -s "map({md5: .})" >&3
+else
+  wget $uri$query -O rules.tar.gz
+  md5sum rules.tar.gz | cut -f 1 -d ' ' | jq -R '.' | jq -s "map({md5: .})" >&3
+fi

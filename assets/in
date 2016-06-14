@@ -2,7 +2,6 @@
 
 set -e -x
 
-# for jq
 PATH=/usr/local/bin:$PATH
 
 exec 3>&1 # make stdout available as fd 3 for the result
@@ -12,14 +11,26 @@ destination=$1
 
 payload=$(cat)
 
-uri=$(echo "$payload" | jq -r '.source.uri')
-oinkcode=$(echo "$payload" | jq -r '.source.oinkcode')
-md5=$(echo "$payload" | jq -r '.version.md5')
+uri=$(echo "$payload" | jq -r '.source.uri // ""')
+oinkcode=$(echo "$payload" | jq -r '.source.oinkcode // ""')
+md5=$(echo "$payload" | jq -r '.version.md5 // ""')
 
-wget $uri?oinkcode=$oinkcode -P $destination
+dest=$destination/${uri##*/}
 
-# TODO: Verify hash
+if [ -n "$oinkcode" ]; then
+  query="?oinkcode=$oinkcode"
+else
+  query=""
+fi
+
+wget $uri$query -O $dest
+md5_computed=$(md5sum $dest | cut -f 1 -d ' ')
+
+if [ -n "$md5" ] && [ "$md5" != "$md5_computed" ]; then
+  echo "MD5 mismatch: expected $md5, got $md5_computed"
+  exit 1
+fi
 
 jq -n "{
-  md5: {ref: $(echo $rules_hash | jq -R .)},
+  md5: {ref: $(echo $md5_computed | jq -R .)},
 }" >&3
